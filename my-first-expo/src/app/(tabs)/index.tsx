@@ -1,4 +1,10 @@
-import { Text, View, StyleSheet, ImageSourcePropType } from "react-native";
+import {
+  Text,
+  View,
+  StyleSheet,
+  ImageSourcePropType,
+  Platform,
+} from "react-native";
 import ImageViewer from "@/components/image_viewer";
 import Button from "@/components/button";
 import * as ImagePicker from "expo-image-picker";
@@ -10,7 +16,7 @@ import EmojiList from "@/components/emoji_list";
 import EmojiSticker from "@/components/emoji-sticker";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { captureRef } from "react-native-view-shot";
-import { Asset } from "expo-media-library";
+import domtoimage from "dom-to-image-more";
 
 const PlaceholderImage = require("@/assets/images/background-image.png");
 
@@ -39,17 +45,38 @@ export default function Index() {
   };
 
   const onSaveImageAsync = async () => {
-    try {
-      const localUri = await captureRef(imageRef, {
-        height: 440,
-        quality: 1,
-      });
-      await Asset.create(localUri);
-      if (localUri) {
-        alert("Saved");
+    if (Platform.OS !== "web") {
+      try {
+        const localUri = await captureRef(imageRef, {
+          height: 440,
+          quality: 1,
+        });
+
+        const MediaLibrary = await import("expo-media-library");
+        await MediaLibrary.saveToLibraryAsync(localUri);
+
+        if (localUri) {
+          alert("Saved!");
+        }
+      } catch (e) {
+        console.log(e);
       }
-    } catch (e) {
-      console.log(e);
+    } else {
+      try {
+        const node = imageRef.current as unknown as HTMLElement;
+        const dataUrl = await domtoimage.toJpeg(node, {
+          quality: 0.95,
+          height: 440,
+          width: 320,
+        });
+
+        const link = document.createElement("a");
+        link.download = "sticker-smash.jpeg";
+        link.href = dataUrl;
+        link.click();
+      } catch (e) {
+        console.log(e);
+      }
     }
   };
 
@@ -59,7 +86,7 @@ export default function Index() {
 
   const pickImageAsync = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: "images",
+      mediaTypes: ["images"],
       allowsEditing: true,
       quality: 1,
     });
@@ -93,17 +120,13 @@ export default function Index() {
       {showAppOption ? (
         <View style={styles.optionsContainer}>
           <View style={styles.optionsRow}>
-            <IconButton
-              label="reset"
-              onPress={onReset}
-              icon="refresh"
-            ></IconButton>
+            <IconButton label="Reset" onPress={onReset} icon="refresh" />
             <CircleButton onPress={onAddSticker} />
             <IconButton
               label="Save"
               onPress={onSaveImageAsync}
               icon="save-alt"
-            ></IconButton>
+            />
           </View>
         </View>
       ) : (
@@ -112,11 +135,11 @@ export default function Index() {
             label="Choose a photo"
             theme="primary"
             onPress={pickImageAsync}
-          ></Button>
+          />
           <Button
             label="Use this photo"
             onPress={() => setShowAppOption(true)}
-          ></Button>
+          />
         </View>
       )}
       <EmojiPicker isVisible={isModalVisible} onClose={onModalClose}>
